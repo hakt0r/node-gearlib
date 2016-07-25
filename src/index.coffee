@@ -26,6 +26,13 @@
     CLB           CLB     CLB   CLB     CLB   CLB           CLB               CLB       CLB     CLB
       * CLB CLB     * CLB *     CLB     CLB   CLB CLB CLB   CLB CLB CLB   CLB CLB CLB   CLB CL###
 
+unless String::bold then do -> # COLORS Module [: what i need in ansi formatting, nothing really :]
+  colormap = bold:1, inverse:7, black:30, red:31, green:32, yellow:33, blue:34, purple:35, cyan:36, white:37, \
+    error:'31;1;7', ok:'32;1;7', warn:'33;1;7', bolder:'37;1;7', log:'34;1;7'
+  COLORS = require('tty').isatty() and not process.env.NO_COLORS
+  String._color = if COLORS then ( (k)-> -> '\x1b[' + k  + 'm' + @ + '\x1b[0m' ) else -> -> @
+  Object.defineProperty String::, name, get: String._color k for name, k of colormap
+
 ### process enhancements ###
 process.cpus = (
   try $fs.readFileSync('/proc/cpuinfo','utf8').match(/processor/g).length
