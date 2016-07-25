@@ -20,18 +20,64 @@
 
 ###
 
+return if $static?
+
+global.$static = (args...) -> while a = do args.shift
+  if ( t = typeof a ) is 'string' then global[a] = do args.shift
+  else if a::? and a::constructor? and a::constructor.name?
+    global[a::constructor.name] = a
+  else ( global[k] = v for k,v of a )
+  null
+
 ###   * CLB CLB     * CLB *     CLB CLB *     CLB CLB CLB   CLB           CLB CLB CLB   CLB CLB *
     CLB           CLB     CLB   CLB     CLB   CLB           CLB               CLB       CLB     CLB
     CLB           CLB     CLB   CLB CLB *     CLB CLB CLB   CLB               CLB       CLB CLB *
     CLB           CLB     CLB   CLB     CLB   CLB           CLB               CLB       CLB     CLB
       * CLB CLB     * CLB *     CLB     CLB   CLB CLB CLB   CLB CLB CLB   CLB CLB CLB   CLB CL###
 
-unless String::bold then do -> # COLORS Module [: what i need in ansi formatting, nothing really :]
-  colormap = bold:1, inverse:7, black:30, red:31, green:32, yellow:33, blue:34, purple:35, cyan:36, white:37, \
-    error:'31;1;7', ok:'32;1;7', warn:'33;1;7', bolder:'37;1;7', log:'34;1;7'
-  COLORS = require('tty').isatty() and not process.env.NO_COLORS
-  String._color = if COLORS then ( (k)-> -> '\x1b[' + k  + 'm' + @ + '\x1b[0m' ) else -> -> @
-  Object.defineProperty String::, name, get: String._color k for name, k of colormap
+$os   = require 'os'
+$fs   = require 'fs'
+$cp   = require 'child_process'
+$util = require 'util'
+$path = require 'path'
+
+$app  = new ( EventEmitter = require('events').EventEmitter )
+$app.setMaxListeners 0
+
+$nullfn = ->
+$evented = (obj)-> Object.assign obj, EventEmitter::; EventEmitter.call obj; obj.setMaxListeners(0); return obj
+$function = (members,func)-> unless func then func = members else ( func[k] = v for k,v of members ); func
+$which = (name)-> w = $cp.spawnSync 'which',[name]; return false if w.status isnt 0; return w.stdout.toString().trim()
+
+$static $app:$app,$os:$os,$fs:$fs,$cp:$cp,$util:$util,$path:$path,$nullfn:$nullfn,$evented:$evented,
+  $function:$function,$which:$which
+
+# unless String::bold then do -> # COLORS Module [: what i need in ansi formatting, nothing really :]
+colormap = bold:1, inverse:7, \
+  black:30, red:31, green:32, yellow:33, blue:34, purple:35, cyan:36, white:37, \
+  blackBG:40, redBG:41, greenBG:42, yellowBG:43, blueBG:44, purpleBG:45, cyanBG:46, whiteBG:47, \
+  error:'31;1;7', ok:'32;1;7', warn:'33;1;7', bolder:'37;1;7', log:'34;1;7'
+COLORS = require('tty').isatty() and not process.env.NO_COLORS
+String._color = if COLORS then ( (k)-> -> '\x1b[' + k  + 'm' + @ + '\x1b[0m' ) else -> -> @
+Object.defineProperty String::, name, get: String._color k for name, k of colormap
+
+### DGB DBG *     DBG DBG DBG   DBG DBG *     DBG     DBG     * DBG DBG
+    DGB     DBG   DBG           DBG     DBG   DBG     DBG   DBG
+    DGB     DBG   DBG DBG DBG   DBG DBG *     DBG     DBG   DBG   * DBG
+    DGB     DBG   DBG           DBG     DBG   DBG     DBG   DBG     DBG
+    DGB DBG *     DBG DBG DBG   DBG DBG *       * DBG DBG     * DB###
+
+$static $debug: $function active:no, hardcore:no, (fn) -> do fn if $debug.active and fn and fn.call
+$debug.enable = (debug=no,hardcore=no)->
+  @verbose = yes; @debug = debug || hardcore; @hardcore = hardcore
+  c._log = log = c.log unless log = ( c = console )._log; start = Date.now();
+  c.log = (args...)-> log.apply c, ['['+(Date.now()-start)+']'].concat args
+  c.verbose = log; c.debug = ( if @debug then log else $nullfn ); c.hardcore = ( if @hardcore then log else $nullfn )
+  c.log '\x1b[43;30mDEBUG MODE\x1b[0m', @debug, @hardcore, c.hardcore
+$debug.disable = -> $debug.active = no; c = console; c.log = c._log || c.log; c.hardcore = c.debug = c.verbose = ->
+unless -3 is process.argv.indexOf('-D') + process.argv.indexOf('-d') + process.argv.indexOf('-v')
+  $debug.enable -1 isnt process.argv.indexOf('-d'), -1 isnt process.argv.indexOf('-D')
+else do $debug.disable
 
 ### process enhancements ###
 process.cpus = (
@@ -329,3 +375,125 @@ $sudo.script = (cmd,callback)-> $sudo ['sh','-c',cmd], (sudo,done)->
   $carrier.carry sudo.stdout, out.push.bind out
   $carrier.carry sudo.stderr, err.push.bind out
   sudo.on 'close', (status)-> callback status, out.join('\n'), err.join('\n')
+
+### REQ REQ *     REQ REQ REQ     * REQ *     REQ     REQ   REQ REQ REQ   REQ REQ *     REQ REQ REQ
+    REQ     REQ   REQ           REQ     REQ   REQ     REQ       REQ       REQ     REQ   REQ
+    REQ REQ *     REQ REQ REQ   REQ     REQ   REQ     REQ       REQ       REQ REQ *     REQ REQ REQ
+    REQ     REQ   REQ           REQ     *     REQ     REQ       REQ       REQ     REQ   REQ
+    REQ     REQ   REQ REQ REQ     * REQ REQ     * REQ REQ   REQ REQ REQ   REQ     REQ   REQ REQ ###
+
+$static $require: (callback) ->
+  ( Error.prepareStackTrace = (err, stack) -> stack ); ( try err = new Error ); ( file = do -> while err.stack.length then return f if __filename isnt f = err.stack.shift().getFileName() ); ( delete Error.prepareStackTrace )
+  mod = $require.Module.byName[name = $require.modName(file)]
+  mod.deps = callback
+  do mod.checkDeps
+
+$require.modName = (file) ->
+  f = file.replace(/\.js$/,'').replace($path.cache+'/','')
+  if $path.basename(f) is $path.basename($path.dirname f) then f = $path.dirname f else f
+
+$require.compile = (source) =>
+  dest = source.replace($path.modules,$path.cache).replace(/coffee$/,'js')
+  return dest if $fs.existsSync(dest) and Date.parse($fs.statSync(source).mtime) is Date.parse($fs.statSync(dest).mtime)
+  $fs.mkdirSync(dir) unless $fs.existsSync dir = $path.dirname(dest)
+  $fs.writeFileSync dest, '#!/usr/bin/env node\n' + $coffee.compile $fs.readFileSync source, 'utf8'
+  $fs.touch.sync dest, ref: source
+  console.debug '\x1b[32m$compiled\x1b[0m', $require.modName dest
+  dest
+
+$require.scan = (base) -> Object.collect base, (dir,cue)->
+  $fs.readdirSync(dir).map( (i)-> $path.join dir, i ).filter (i) ->
+    return false if i is __filename or i.match 'node_modules'
+    cue i        if $fs.statSync(i).isDirectory()
+    i.match /\.(js|coffee)$/
+
+$require.all = (callback) ->
+  $require.scan($path.modules).map($require.compile).map (file)->
+    return if file.match /\/gear\.js$/
+    new $require.Module file
+  $async.series [ $require.apt.commit, $require.npm.commit ], ->
+    setImmediate retryRound = ->
+      console.hardcore 'WAITING_FOR', Object.keys($require.Module.waiting).join ' '
+      do mod.reload for name, mod of $require.Module.waiting
+      return setImmediate retryRound unless 0 is Object.keys($require.Module.waiting).length
+      $app.emit 'init', defer = $async.defer callback
+      do defer.engage
+
+
+
+$require.Module = class GEARModule
+  @waiting: {}
+  @byPath: {}
+  @byName: {}
+  constructor: (@path)->
+    $require.Module.byPath[@path] = $require.Module.byName[@name = $require.modName @path] = @
+    require @path
+    if ( @deps and @loaded ) or ( not @deps? )
+      console.hardcore '\x1b[33mmodule\x1b[0m', @name, @loaded, @deps?
+      return @loaded = true
+    @loaded = false
+  reload: ->
+    return unless @checkDeps()
+    delete require.cache[@path]
+    require @path
+  checkDeps: ->
+    done = yes; mods = $require.Module.byName
+    if @deps then @deps.call {
+    defer: => unless @resolve
+      done = no
+      @defer = $nullfn; console.hardcore '<defer>', @name
+      @resolve = =>
+        delete @resolve; @loaded = true; console.hardcore '<resolved>', @name
+    apt:    (args) => done = done && $require.apt args
+    npm: (args...) => done = done && $require.npm.apply null, args
+    mod: (args...) => for mod in args
+      done = done && mods[mod]? && mods[mod].loaded
+    }, @
+    if done then delete $require.Module.waiting[@name]
+    else $require.Module.waiting[@name] = @
+    return if done and @resolve then true else if done then @loaded = true else @loaded = false
+
+
+
+$require.npm = $function queue: {}, list: {}, source: {}, (list...) ->
+  n = $require.npm; wait = false
+  for k in list
+    if k.match ' '
+      [ k, url ] = k.split ' '
+      n.source[k] = url
+    n.list[k] = true
+    n.queue[k] = n.list[k] = wait = true unless $fs.existsSync $path.join $path.node_modules, k
+  not true is wait
+
+$require.npm.now = (list,callback) ->
+  return do callback if $require.npm.apply null, list
+  $require.npm.commit callback
+
+$require.npm.commit = (callback)->
+  queue = ( n = $require.npm ).queue; n.queue = {}
+  install = Object.keys(queue).map (i)->
+    console.log i, n.source
+    n.source[i] || i
+  return do callback if install.length is 0
+  console.log ' INSTALL ', install
+  session = $cp.spawn 'npm', ['install'].concat(install), stdio:'inherit'
+  session.on 'close', -> do callback
+
+
+
+$require.apt = $function queue: {}, missing: {}, (list) ->
+  wait = false
+  for k,v of list
+    continue if $fs.existsSync(k) or $which(k) or $require.apt.missing[k]
+    wait = true ; $require.apt.queue[k] = v
+  not true is wait
+
+$require.apt.commit = (callback=->)->
+  queue = $require.apt.queue; $require.apt.queue = {}
+  return do callback if ( install = ( v for k,v of queue ) ).length is 0
+  session = $sudo ['apt-get','install','--no-install-recommends','--no-install-suggests','-y'].concat(install), stdio:'inherit', (p,done)-> do done; p.on 'close', ->
+    for app, pkg of queue when not $which app
+      console.error 'ERROR:', app, 'is missing and cannot be installed'
+      # process.exit(0)
+      $require.apt.missing[app] = true
+    do callback
