@@ -5,12 +5,17 @@
   "main": "index.js",
   "scripts": {
     "prepublish": "coffee -o . -c src/index.coffee",
-    "install": "test -f index.js || coffee -o . -c src/index.coffee",
+    "install": "test -f index.js || { which coffee || npm i coffee-script; coffee -o . -c src/index.coffee; npm remove coffee-script; }",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "devDependencies": { "coffee-script": "^1.10.0" },
-  "repository": { "type": "git", "url": "http://gihub.com/haktor/gearlib.git" },
-  "keywords": [ "gear", "lib", "async", "array", "object" ],
+  "devDependencies": {
+    "coffee-script": "^1.10.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://gihub.com/haktor/gearlib.git"
+  },
+  "keywords": ["gear", "lib", "async", "array", "object"],
   "author": "Sebastian Glaser <anx@hakt0r.de>",
-  "license": "LGPLv3"
+  "license": "LGPL-3.0"
 }
