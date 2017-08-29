@@ -199,9 +199,11 @@ $cp.expect = (cmd)-> new Expect cmd
 
 class Expect
   expect: null
-  constructor: (@cmd,@onopen) ->
+  constructor: (@cmd,@sudo,@onopen) ->
+    @onopen = @sudo unless @onopen
     @expect = []
-    $sudo [ 'sh','-c',@cmd], @run
+    if @sudo then $sudo [ 'sh','-c',@cmd], @run
+    else @run ( $cp.spawn 'sh', ['-c',@cmd] ), ->
   run: (@proc,done) =>
     setImmediate done
     $cp.sane @proc
@@ -369,6 +371,11 @@ $sudo.read = (cmd,callback)-> $sudo ['sh','-c',cmd], (proc,done)->
   $cp.sane proc
   proc.stdout.once 'data', -> done null
   $carrier.carry proc.stdout, callback
+
+$sudo.sync = (cmd)->
+  args = ['sh','-c',cmd]
+  args.unshift '-A' if process.env.DISPLAY
+  $cp.spawnSync 'sudo', args
 
 $sudo.script = (cmd,callback)-> $sudo ['sh','-c',cmd], (sudo,done)->
   do done; $cp.sane sudo; out = []; err = []
