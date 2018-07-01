@@ -57,7 +57,7 @@ colormap = bold:1, inverse:7, \
   black:30, red:31, green:32, yellow:33, blue:34, purple:35, cyan:36, white:37, \
   blackBG:40, redBG:41, greenBG:42, yellowBG:43, blueBG:44, purpleBG:45, cyanBG:46, whiteBG:47, \
   error:'31;1;7', ok:'32;1;7', warn:'33;1;7', bolder:'37;1;7', log:'34;1;7'
-COLORS = require('tty').isatty() and not process.env.NO_COLORS
+COLORS = process.stdout.isTTY and not process.env.NO_COLORS
 String._color = if COLORS then ( (k)-> -> '\x1b[' + k  + 'm' + @ + '\x1b[0m' ) else -> -> @
 Object.defineProperty String::, name, get: String._color k for name, k of colormap
 

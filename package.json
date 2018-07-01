@@ -4,7 +4,7 @@
   "description": "gear's extensions to nodeJS",
   "main": "index.js",
   "scripts": {
-    "prepublish": "coffee -o . -c src/index.coffee",
+    "prepare": "coffee -o . -c src/index.coffee",
     "install": "test -f index.js || { which coffee || npm i coffee-script; coffee -o . -c src/index.coffee; npm remove coffee-script; }",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
